@@ -115,5 +115,5 @@ if __name__ == "__main__":
     out_dir = sys.argv[3]
 
     main(ndpi_file, json_file, out_dir)
-#poetry run python data\slice_ndpi.py "D:\Downloads\HT16-5845 A4 Ki67.ndpi" "data\HT16-5845 A4 Ki67.geojson" "data/dataset_Ki67"
-#poetry run python data\slice_ndpi.py "D:\Downloads\HT16-5845 A4 HE.ndpi" "data\HT16-5845 A4 HE.geojson" "data/dataset_HE"
+#poetry run python data\slice_ndpi.py "D:\Downloads\HT16-5845 A4 Ki67.ndpi" "data\HT16-5845 A4 Ki67.geojson" "D:\Downloads\dataset_stain_transformation\dataset_Ki67"
+#poetry run python data\slice_ndpi.py "D:\Downloads\HT16-5845 A4 HE.ndpi" "data\HT16-5845 A4 HE.geojson" "D:\Downloads\dataset_stain_transformation\dataset_HE"
