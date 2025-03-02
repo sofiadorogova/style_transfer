@@ -23,6 +23,6 @@ class GenLoss(nn.Module):
         """
         l1_loss = F.l1_loss(fake_image, real_image)
         tv_loss = (fake_image ** 2).mean(dim=0).sum()
-        gen_loss = (1. - dis_pred_fake) ** 2
+        gen_loss = ((1. - dis_pred_fake) ** 2).mean()
         loss = l1_loss + self.alpha * tv_loss + self.beta * gen_loss
         return loss

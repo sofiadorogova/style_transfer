@@ -18,7 +18,14 @@ class StainDataset(Dataset):
         super().__init__()
         self.he_dir = he_dir
         self.ki67_dir = ki67_dir
-        self.transform = transform
+
+        if transform is None:
+            self.transform = transforms.Compose([
+                                transforms.Resize((512, 512)),  # на всякий случай
+                                transforms.ToTensor()
+                            ])
+        else:
+            self.transform = transform
 
         self.he_files = sorted([
             f for f in os.listdir(self.he_dir)

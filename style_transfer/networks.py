@@ -178,7 +178,7 @@ class UNet_Decoder(nn.Module):
         return self.final(d3)
     
 class UNet(nn.Module):
-    def __init__(self, n_channels=3, n_classes=1):
+    def __init__(self, n_channels=3, n_classes=3):
         super().__init__()
 
         self.encoder = UNet_Encoder(init_channels=n_channels)
