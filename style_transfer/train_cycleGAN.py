@@ -1,8 +1,10 @@
 from pathlib import Path
 import torch
+from torch.utils.tensorboard import SummaryWriter
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
+import json
 
 from cycle_loss import CycleGANLoss
 from networks import UNet, VGGDiscriminator
@@ -19,7 +21,7 @@ class CycleGANTrainer:
                  lambda_cycle=10.0,
                  epochs=50):
 
-        self.device = torch.device('cuda' if torch.cuda.is_available() else "cpu")
+        self.device = torch.device('cuda:1' if torch.cuda.is_available() else "cpu")
         self.epochs = epochs
 
         # Модели
@@ -30,7 +32,20 @@ class CycleGANTrainer:
 
         # Разделяем датасет на train/val
         number_generator = torch.Generator().manual_seed(42)
-        train_data, val_data, _ = random_split(dataset, [0.6, 0.2, 0.2], number_generator)
+        train_data, val_data, test_data = random_split(dataset, [0.6, 0.2, 0.2], number_generator)
+
+        train_indices = train_data.indices
+        val_indices   = val_data.indices
+        test_indices  = test_data.indices
+
+        split_dict = {
+            "train": list(train_indices),
+            "val":   list(val_indices),
+            "test":  list(test_indices)
+        }
+
+        with open("split_indices.json", "w") as f:
+            json.dump(split_dict, f)
 
         self.train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
         self.val_loader = DataLoader(val_data, batch_size=batch_size, shuffle=False)
@@ -40,6 +55,7 @@ class CycleGANTrainer:
             list(self.G_XtoY.parameters()) + list(self.F_YtoX.parameters()),
             lr=lr_g, betas=(0.5, 0.999)
         )
+        self.logger = SummaryWriter()
         self.opt_dx = torch.optim.Adam(self.D_X.parameters(), lr=lr_d, betas=(0.5, 0.999))
         self.opt_dy = torch.optim.Adam(self.D_Y.parameters(), lr=lr_d, betas=(0.5, 0.999))
 
@@ -171,7 +187,13 @@ class CycleGANTrainer:
     def run(self):
         for epoch in range(1, self.epochs+1):
             train_g, train_dx, train_dy = self.train_epoch()
+            self.logger.add_scalar("Loss_train/train_g", train_g, epoch)
+            self.logger.add_scalar("Loss_train/train_dx", train_dx, epoch)
+            self.logger.add_scalar("Loss_train/train_dy", train_dy, epoch)
             val_g, val_dx, val_dy = self.validate()
+            self.logger.add_scalar("Loss_val/val_g", val_g, epoch)
+            self.logger.add_scalar("Loss_val/val_dx", val_dx, epoch)
+            self.logger.add_scalar("Loss_val/val_dy", val_dy, epoch)
             print(f"Epoch [{epoch}/{self.epochs}] | "
                   f"Train G: {train_g:.4f}, DX: {train_dx:.4f}, DY: {train_dy:.4f} | "
                   f"Val G: {val_g:.4f}, DX: {val_dx:.4f}, DY: {val_dy:.4f}")
@@ -183,9 +205,15 @@ if __name__ == "__main__":
     D_X = VGGDiscriminator()  # дискриминатор для домена X (HE)
     D_Y = VGGDiscriminator()  # дискриминатор для домена Y (Ki67)
 
-    he_dir = Path("data/dataset_stain_transformation/dataset_HE/tiles")
-    ki_dir = Path("data/dataset_stain_transformation/dataset_Ki67/tiles")
-    dataset = StainDataset(he_dir, ki_dir)
+    he_dir = Path("data/dataset_HE/tiles")
+    ki_dir = Path("data/dataset_Ki67/tiles")
+    
+    print("INFO: Загрузка датасета")
+    dataset = StainDataset(
+        he_dir=he_dir,
+        ki67_dir=ki_dir,
+        white_threshold=240
+    )
 
     trainer = CycleGANTrainer(
         G_XtoY, F_YtoX, D_X, D_Y,
@@ -194,7 +222,7 @@ if __name__ == "__main__":
         lr_g=1e-4,
         lr_d=1e-5,
         lambda_cycle=10.0,
-        epochs=50
+        epochs=100
     )
 
     trainer.run()
