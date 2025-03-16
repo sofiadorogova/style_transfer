@@ -55,6 +55,5 @@ class CycleGANLoss(nn.Module):
         cycle_y = self.l1(rec_y, real_y)  # G(F(y)) ~ y
         cycle_loss = cycle_x + cycle_y
 
-        # Итоговый лосс (сумма GAN и cycle)
         loss_g = adv_g + adv_f + self.lambda_cycle * cycle_loss
         return loss_g
