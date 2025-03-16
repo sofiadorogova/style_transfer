@@ -71,7 +71,7 @@ def main(ndpi_path, geojson_path, output_dir):
         preview_region = slide.read_region((x, y), best_level, (w_reduced, h_reduced)).convert("RGB")
 
         # Сохраняем превью
-        preview_path = os.path.join(output_dir, "preview.jpg")
+        preview_path = os.path.join(output_dir, "preview.png")
         preview_region.save(preview_path, "JPEG", quality=90)
         print(f"[INFO] Сохранено превью области: {preview_path}")
 
@@ -91,19 +91,23 @@ def main(ndpi_path, geojson_path, output_dir):
         coords = feature['geometry']['coordinates'][0]
         x, y, w, h = polygon_to_bbox(coords)
 
-        # Считываем регион в максимальном уровне (0)
-        region = slide.read_region((x, y), 0, (w, h)).convert("RGB")
-
-        # Имя
         tile_name = feature['properties'].get('name', f"Tile_{i}")
-        tile_filename = f"{i:03d}_{tile_name}.jpg"
+        tile_filename = f"{i:03d}_{tile_name}.png"
         tile_path = os.path.join(tiles_dir, tile_filename)
 
-        region.save(tile_path, "JPEG", quality=90)
+        # Проверяем, не сохранён ли уже файл
+        if os.path.exists(tile_path):
+            print(f"[INFO] Пропускаем {tile_path}, уже существует.")
+            continue
+
+        # Если нет - считываем регион (максимальный уровень 0)
+        region = slide.read_region((x, y), 0, (w, h)).convert("RGB")
+
+        # Сохраняем тайл
+        region.save(tile_path, "PNG", compress_level=0, optimize=True)
         print(f"[INFO] Сохранён тайл: {tile_path}")
 
     print("[INFO] Готово!")
-
 
 if __name__ == "__main__":
     if len(sys.argv) < 4:
