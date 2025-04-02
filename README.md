@@ -1,5 +1,1 @@
-В папке data хранится json файл с разметкой датасета (первый образец в разметке это весь bounding box)
-
-В папке style_transfer/dataset находятся 200 примеров картинок 512*512, полученных после нарезки (некоторые белые, потому что область неоднородная, пока не фильтровала такие образцы)
-
-Также в этой папке есть preview.jpg, в котором можно посмотреть всю область, которая была нарезана.
+This repository demonstrates how to apply style transfer techniques (using CycleGAN) to histopathological images in order to generate synthetic samples that address data scarcity. By bypassing the need for perfectly matched image pairs, this method streamlines the otherwise expensive and time-consuming task of collecting rare or specialized tissue images. The project includes training scripts, model definitions, and sample results that showcase the feasibility of enhancing histopathological datasets through generative adversarial networks.
