@@ -16,8 +16,9 @@ def visualize_cycleGAN_samples(
     he_dir: str, 
     ki_dir: str, 
     split_indices_path="split_indices.json",
-    save_dir="test_visuals",
-    n_samples=5
+    save_dir="test_visuals/run_2",
+    n_samples=10,
+    start_from_checkpoint=False
 ):
     """
     Выбираем n_samples из тестовой выборки, 
@@ -28,7 +29,17 @@ def visualize_cycleGAN_samples(
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     #Подгруждаем датасет
-    dataset = StainDataset(Path(he_dir), Path(ki_dir))
+
+    he_filtered_dir = Path("data/HE_filtered")
+    ki_filtered_dir = Path("data/Ki67_filtered")
+    dataset = StainDataset(
+        he_dir=he_dir,
+        ki_dir=ki_dir,
+        he_filtered_dir=ki_filtered_dir,
+        ki_filtered_dir=he_filtered_dir,
+        save_filtered=False,
+        train=False
+    )
     with open(split_indices_path, "r") as f:
         split_dict = json.load(f)
     test_indices = split_dict["test"]
@@ -36,12 +47,25 @@ def visualize_cycleGAN_samples(
     test_loader = DataLoader(test_data, batch_size=1, shuffle=False)
 
     #Подгружаем модели
-    G_XtoY = UNet().to(device)
-    F_YtoX = UNet().to(device)
-    G_XtoY.load_state_dict(torch.load(G_XtoY_path, map_location=device))
-    F_YtoX.load_state_dict(torch.load(F_YtoX_path, map_location=device))
-    G_XtoY.eval()
-    F_YtoX.eval()
+    if start_from_checkpoint:
+        checkpoint_path = "models/checkpoints/checkpoint_50.pth"  
+        # Загрузим словарь
+        checkpoint = torch.load(checkpoint_path, map_location=device)
+        G_XtoY = UNet().to(device)
+        F_YtoX = UNet().to(device)
+
+        G_XtoY.load_state_dict(checkpoint["G_XtoY"], strict=True)
+        F_YtoX.load_state_dict(checkpoint["F_YtoX"], strict=True)
+
+        G_XtoY.eval()
+        F_YtoX.eval()
+    else:
+        G_XtoY = UNet().to(device)
+        F_YtoX = UNet().to(device)
+        G_XtoY.load_state_dict(torch.load(G_XtoY_path, map_location=device))
+        F_YtoX.load_state_dict(torch.load(F_YtoX_path, map_location=device))
+        G_XtoY.eval()
+        F_YtoX.eval()
 
     #Цикл по первым n_samples
     with torch.no_grad():
@@ -59,17 +83,10 @@ def visualize_cycleGAN_samples(
             fake_x = F_YtoX(ki_img)   # y->x
             rec_y  = G_XtoY(fake_x)   # y->x->y
 
-            # Создадим коллаж
-            # Например, соберём [ real_x, fake_y, rec_x, real_y, fake_x, rec_y ] в одну строку
-            # shape: (6, C, H, W)
             collage = torch.cat([he_img, fake_y, rec_x, ki_img, fake_x, rec_y], dim=0)
 
-            # Превращаем в grid (nrow=6 => все в одну строку) 
-            # или nrow=3, тогда будет 2 строки, etc.
-            # pad_value=1 — белые границы
             grid = make_grid(collage, nrow=3, padding=2, pad_value=1.0)
 
-            # Сохраним
             out_path = os.path.join(save_dir, f"sample_{i}_visual.png")
             save_image(grid, out_path)
             print(f"[INFO] Сохранена визуализация сэмпла {i}: {out_path}")
@@ -81,7 +98,8 @@ def test_cycleGAN_with_cycle_consistency(
     he_dir: str, 
     ki_dir: str, 
     split_indices_path="split_indices.json",
-    save_dir="test_results"
+    save_dir="test_results/run_2",
+    start_from_checkpoint=False
 ):
     """
     Тестируем CycleGAN, дополнительно считая "cycle-consistency" метрику (L1):
@@ -92,7 +110,16 @@ def test_cycleGAN_with_cycle_consistency(
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     os.makedirs(save_dir, exist_ok=True)
 
-    dataset = StainDataset(Path(he_dir), Path(ki_dir))
+    he_filtered_dir = Path("data/HE_filtered")
+    ki_filtered_dir = Path("data/Ki67_filtered")
+    dataset = StainDataset(
+        he_dir=he_dir,
+        ki_dir=ki_dir,
+        he_filtered_dir=ki_filtered_dir,
+        ki_filtered_dir=he_filtered_dir,
+        save_filtered=False,
+        train=False
+    )
 
     with open(split_indices_path, "r") as f:
         split_dict = json.load(f)
@@ -100,14 +127,25 @@ def test_cycleGAN_with_cycle_consistency(
     test_data = Subset(dataset, test_indices)
     test_loader = DataLoader(test_data, batch_size=1, shuffle=False)
 
-    G_XtoY = UNet().to(device)
-    F_YtoX = UNet().to(device)
+    if start_from_checkpoint:
+        checkpoint_path = "models/checkpoints/checkpoint_50.pth"  
+        # Загрузим словарь
+        checkpoint = torch.load(checkpoint_path, map_location=device)
+        G_XtoY = UNet().to(device)
+        F_YtoX = UNet().to(device)
 
-    G_XtoY.load_state_dict(torch.load(G_XtoY_path, map_location=device))
-    F_YtoX.load_state_dict(torch.load(F_YtoX_path, map_location=device))
-    
-    G_XtoY.eval()
-    F_YtoX.eval()
+        G_XtoY.load_state_dict(checkpoint["G_XtoY"], strict=True)
+        F_YtoX.load_state_dict(checkpoint["F_YtoX"], strict=True)
+
+        G_XtoY.eval()
+        F_YtoX.eval()
+    else:
+        G_XtoY = UNet().to(device)
+        F_YtoX = UNet().to(device)
+        G_XtoY.load_state_dict(torch.load(G_XtoY_path, map_location=device))
+        F_YtoX.load_state_dict(torch.load(F_YtoX_path, map_location=device))
+        G_XtoY.eval()
+        F_YtoX.eval()
 
     total_cycle_x = 0.0
     total_cycle_y = 0.0
@@ -164,20 +202,23 @@ def test_cycleGAN_with_cycle_consistency(
 if __name__ == "__main__":
     he_dir = Path("data/dataset_HE/tiles")
     ki_dir = Path("data/dataset_Ki67/tiles")
+    
     test_cycleGAN_with_cycle_consistency(
-        G_XtoY_path="models/G_XtoY.pt",
-        F_YtoX_path="models/F_YtoX.pt",
-        he_dir=he_dir,
-        ki_dir=ki_dir,
+        G_XtoY_path="models/run_1/G_XtoY.pt",
+        F_YtoX_path="models/run_1/F_YtoX.pt",
+        he_dir=ki_dir,
+        ki_dir=he_dir,
         split_indices_path="split_indices.json",
-        save_dir="test_results"
+        save_dir="test_results/run_1",
+        start_from_checkpoint=False
     )
     visualize_cycleGAN_samples(
-        G_XtoY_path="models/G_XtoY.pt",
-        F_YtoX_path="models/F_YtoX.pt",
-        he_dir=he_dir,
-        ki_dir=ki_dir,
+        G_XtoY_path="models/run_1/G_XtoY.pt",
+        F_YtoX_path="models/run_1/F_YtoX.pt",
+        he_dir=ki_dir,
+        ki_dir=he_dir,
         split_indices_path="split_indices.json",
-        save_dir="test_visuals",
-        n_samples=5
+        save_dir="test_visuals/run_1",
+        n_samples=10,
+        start_from_checkpoint=False
     )
