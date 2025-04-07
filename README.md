@@ -7,17 +7,17 @@
 
 - **Входные данные**: изображения окраски H&E. 
   
-
-  <figure style="text-align:center;">
-  <img src="pictures\photo_2025-04-01_11-06-55.jpg" width="500" alt="Пример входных данных">
-  <figcaption><strong></strong>Пример входных данных </figcaption>
+<p align="center">
+  <img src="pictures\photo_2025-04-01_11-06-55.jpg" alt="Диаграмма" width="500">
+<p align="center"> Пример входных данных (H&E)</figcaption>
 </figure>
+
 
 - **Выход**: изображения специальной (редкой) окраски, например Masson’s Trichrome, PAS и т. д.
 
-<figure style="text-align:center;">
+<p align="center">
   <img src="pictures\photo_2025-03-01_21-23-31.jpg" width="500" alt="Пример выходных данных">
-  <figcaption><strong></strong>Пример выходных данных </figcaption>
+<p align="center"> <strong></strong>Пример выходных данных </figcaption>
 </figure>
 
 - **Цель**: научить модель преобразовывать изображения H&E в изображения редкой окраски, сохраняя морфологическую информацию и корректно передавая цветовые особенности.  
@@ -30,24 +30,23 @@
 1. Используются две пары генераторов и дискриминаторов:  
    - Генераторы $G: X \to Y$ и $F: Y \to X$ .  
    - Дискриминаторы $D_Y$ (оценивает, действительно ли образец принадлежит домену $Y$) и $D_X$  (оценивает принадлежность домену $X$).
-
-<figure style="text-align:center;">
+<p align="center">
   <img src="pictures\arcitecture.png" width="500" alt="Работа CycleGAN">
-  <figcaption><strong></strong> Работа CycleGAN </figcaption>
+<p align="center"><strong></strong> Работа CycleGAN </figcaption>
 </figure>
 
 1. **Adversarial Loss** (противоположные цели генератора и дискриминатора) заставляет выход генератора быть «максимально похожим» на образцы целевого домена, чтобы дискриминатор не смог отличить сгенерированные изображения от реальных.
 
-<figure style="text-align:center;">
+<p align="center">
   <img src="pictures\loss-GAN.png" width="300" alt="Loss-функция GAN">
-  <figcaption><strong></strong> Loss-функция GAN</figcaption>
+<p align="center"><strong></strong> Loss-функция GAN</figcaption>
 </figure>
 
 1. **Cycle-Consistency Loss** вводится, чтобы при переводе из домена $X$ в $Y$, а потом обратно – в $X$ (через генератор $F$ ), результат оставался как можно ближе к исходному изображению.
 
-<figure style="text-align:center;">
+<p align="center">
   <img src="pictures\cycle-loss.png" width="300" alt="CycleLoss">
-  <figcaption><strong></strong> CycleLoss</figcaption>
+<p align="center"><strong></strong> CycleLoss</figcaption>
 </figure>
 
 
@@ -73,9 +72,9 @@
 - **График лосса дискриминатора ( $D_x$ )**: демонстрирует, насколько дискриминатор (применительно к домену X) учится отличать реальные снимки H&E от сгенерированных.  
 - **График лосса генератора ( $G_x$ )**: показывает качество генератора, который пытается «обмануть» дискриминатор, генерируя достоверные изображения редкой окраски.
 
-<figure style="text-align:center;">
+<p align="center">
   <img src="pictures\loss_train.jpg" width="400" alt="Кривая обучения генератора">
-  <figcaption><strong></strong> Кривая обучения генератора </figcaption>
+<p align="center"><strong></strong> Кривая обучения генератора </figcaption>
 </figure>
 
 
@@ -83,17 +82,17 @@
 
 1. **Пример «галлюцинаций» в передаче цвета**: модель может некорректно изменять цветовые оттенки, делая некоторые области слишком яркими или, наоборот, тусклыми.  
 
-<figure style="text-align:center;">
+<p align="center">
   <img src="pictures\color_mistakes.png" width="500" alt="Галлюцинации в цвете">
-  <figcaption><strong></strong> Пример галлюцинаций в цвете </figcaption>
+<p align="center"><strong></strong> Пример галлюцинаций в цвете </figcaption>
 </figure>
 
 
 1. **Передача информации о Ki-67 положительных клетках**: важно проверить, что модель правильно учитывает детали в визуализации клеток, особенно маркеров деления, без подмены сути изображения.
 
-<figure style="text-align:center;">
+<p align="center">
   <img src="pictures\pair_1_collage.png" width="500" alt="Галлюцинации">
-  <figcaption><strong></strong> Пример ошибок в распознавании Ki-67 положительных клеток </figcaption>
+<p align="center"><strong></strong> Пример ошибок в распознавании Ki-67 положительных клеток </figcaption>
 </figure>
 
 
