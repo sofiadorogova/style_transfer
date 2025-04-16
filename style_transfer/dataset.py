@@ -9,27 +9,6 @@ import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 
-def gray_world_correction(img: np.ndarray) -> np.ndarray:
-    """
-    Реализация самого простого варианта Gray World:
-    Вычисляем среднее значение по каждому каналу и приводим каждый канал 
-    к общему среднему.
-    """
-
-    mean_per_channel = img.mean(axis=(0, 1))  # [meanR, meanG, meanB]
-    # Среднее среди каналов (целевое "серое")
-    gray_mean = mean_per_channel.mean()
-
-    # Избегаем деления на 0
-    scale = np.where(mean_per_channel == 0, 1, mean_per_channel)
-    gain = gray_mean / scale  # Множители для каждого канала
-
-    corrected = img.astype(np.float32)
-    for c in range(3):
-        corrected[..., c] *= gain[c]
-
-    corrected = np.clip(corrected, 0, 255).astype(np.uint8)
-    return corrected
 
 class StainDataset(Dataset):
     """
@@ -45,9 +24,7 @@ class StainDataset(Dataset):
                  ki_filtered_dir: str,
                  transform=None,
                  save_filtered=True,
-                 train=True,
-                 white_threshold=230,
-                 prob_correction=0.5):
+                 white_threshold=230):
         """
         :param white_threshold: если средняя яркость (0..255) выше этого порога —
                                 картинка считается белой и исключается.
@@ -146,18 +123,6 @@ class StainDataset(Dataset):
 
         he_img_pil = Image.open(he_path).convert('RGB')
         ki_img_pil = Image.open(ki67_path).convert('RGB')
-
-        if self.train:
-            # С некоторой вероятностью делаем аугментацию
-            if random.random() < self.prob_correction:
-                he_np = np.array(he_img_pil)
-                ki_np = np.array(ki_img_pil)
-
-                he_corrected = gray_world_correction(he_np)
-                ki_corrected = gray_world_correction(ki_np)
-
-                he_img_pil = Image.fromarray(he_corrected)
-                ki_img_pil = Image.fromarray(ki_corrected)
 
         if self.transform is not None:
             he_img = self.transform(he_img_pil)
