@@ -37,8 +37,7 @@ def visualize_cycleGAN_samples(
         ki_dir=ki_dir,
         he_filtered_dir=ki_filtered_dir,
         ki_filtered_dir=he_filtered_dir,
-        save_filtered=False,
-        train=False
+        save_filtered=False
     )
     with open(split_indices_path, "r") as f:
         split_dict = json.load(f)
@@ -117,8 +116,7 @@ def test_cycleGAN_with_cycle_consistency(
         ki_dir=ki_dir,
         he_filtered_dir=ki_filtered_dir,
         ki_filtered_dir=he_filtered_dir,
-        save_filtered=False,
-        train=False
+        save_filtered=False
     )
 
     with open(split_indices_path, "r") as f:
