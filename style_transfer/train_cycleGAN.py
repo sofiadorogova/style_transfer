@@ -21,6 +21,7 @@ class CycleGANTrainer:
                  lr_g=1e-4,
                  lr_d=1e-5,
                  lambda_cycle=10.0,
+                 lambda_id = 0.5,
                  epochs=50,
                  save_every=10,
                  grad_clip_value=1.0):
@@ -29,6 +30,7 @@ class CycleGANTrainer:
         self.epochs = epochs
         self.save_every = save_every
         self.grad_clip_value = grad_clip_value
+        self.lambda_id = lambda_id
 
         # Модели
         self.G_XtoY = G_XtoY.to(self.device)
@@ -140,6 +142,15 @@ class CycleGANTrainer:
                 rec_x, rec_y,
                 d_y_fake_for_g, d_x_fake_for_f
             )
+
+            # Вычисление IdentityLoss (только в train)
+            same_y = self.G_XtoY(real_y)
+            loss_identity_y = self.L1_loss(same_y, real_y)
+            same_x = self.F_YtoX(real_x)
+            loss_identity_x = self.L1_loss(same_x, real_x)
+            identity_loss = self.lambda_id * (loss_identity_x + loss_identity_y)
+
+            g_loss += identity_loss
 
             g_loss.backward()
 

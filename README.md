@@ -52,7 +52,7 @@
 4. **Identity Loss** вводится, чтобы стабилизирать обучение, сохранить цветовую гамму при отображении входных данных и предотвратить расхождение к плохим локальным оптимумам на начальных этапах процесса обучения.
 
 <p align="center">
-  <img src="pictures\loss-identity.png" width="300" alt="CycleLoss">
+  <img src="pictures\loss-identity.png" width="450" alt="CycleLoss">
 <p align="center"><strong></strong> CycleLoss</figcaption>
 </figure>
 
