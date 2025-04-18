@@ -5,6 +5,7 @@ from torch.utils.tensorboard import SummaryWriter
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
+from optim.optimistic import OGDA, OptimisticAdam
 import json
 
 import torch.nn.utils as utils
@@ -24,7 +25,9 @@ class CycleGANTrainer:
                  lambda_id = 0.5,
                  epochs=50,
                  save_every=10,
-                 grad_clip_value=1.0):
+                 grad_clip_value=1.0,
+                 optim_g="optimistic_adam",  # "optimistic_adam" или "ogda"
+                 optim_d="ogda"):            # "optimistic_adam" или "ogda"
 
         self.device = torch.device('cuda:1' if torch.cuda.is_available() else "cpu")
         self.epochs = epochs
@@ -69,8 +72,35 @@ class CycleGANTrainer:
 
         # Лосс: CycleGANLoss (из cycle_loss.py)
         self.cycle_loss_fn = CycleGANLoss(lambda_cycle=lambda_cycle)
+        # L1 для IdentityLoss
+        self.l1 = nn.L1_loss()
+
         # MSE для дискриминаторов (LSGAN)
         self.mse = nn.MSELoss()
+
+        # Выбор оптимизатора для генераторов
+        if optim_g == "optimistic_adam":
+            self.opt_g = OptimisticAdam(
+                list(self.G_XtoY.parameters()) + list (self.F_YtoX.parameters()),
+                lr=lr_g, betas=(0.5, 0.999)
+            )
+        elif optim_g == "ogda":
+            self.opt_g = OGDA(
+                list(self.G_XtoY.parameters()) + list (self.F_YtoX.parameters()),
+                lr = lr_g
+            )
+        else:
+            raise ValueError("optim_g must be 'optimistic_adam' or 'ogda'")
+        
+        # Выбор оптимизаторов для дискриминаторов
+        if optim_d == "optimistic_adam":
+            self.opt_dx = OptimisticAdam(self.D_X.parameters(), lr=lr_d, betas=(0.5, 0.999))
+            self.opt_dy = OptimisticAdam(self.D_Y.parameters(), lr=lr_d, betas=(0.5, 0.999))
+        elif optim_d == "ogda":
+            self.opt_dx = OGDA(self.D_X.parameters(), lr=lr_d)
+            self.opt_dy = OGDA(self.D_Y.parameters(), lr=lr_d)
+        else:
+            raise ValueError("optim_d must be 'optimistic_adam' or 'ogda'")
     
     def train_epoch(self):
         """Одна эпоха обучения"""
@@ -145,9 +175,9 @@ class CycleGANTrainer:
 
             # Вычисление IdentityLoss (только в train)
             same_y = self.G_XtoY(real_y)
-            loss_identity_y = self.L1_loss(same_y, real_y)
+            loss_identity_y = self.l1(same_y, real_y)
             same_x = self.F_YtoX(real_x)
-            loss_identity_x = self.L1_loss(same_x, real_x)
+            loss_identity_x = self.l1(same_x, real_x)
             identity_loss = self.lambda_id * (loss_identity_x + loss_identity_y)
 
             g_loss += identity_loss
@@ -315,6 +345,7 @@ if __name__ == "__main__":
         lr_g=1e-4,
         lr_d=1e-5,
         lambda_cycle=10.0,
+        lambda_id=0.5,
         epochs=100,
         save_every=10,
         grad_clip_value=1.0
