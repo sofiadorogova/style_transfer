@@ -3,93 +3,120 @@ from torch.optim import Optimizer
 
 
 class EG(Optimizer):
-    """Реализация метода Extra Gradient"""
+    """
+    Extra‑Gradient
+    Параметры группы:
+    • lr (float) – шаг обучения;
+    • weight_decay (float) – L2‑регуляризация;
+    • maximize (bool) – True ⇢ градиентный ПОДЪЁМ (исп. для дискриминатора),
+                         False ⇢ градиентный СПУСК (генератор).
 
-    def __init__(self, params, lr=1e-3, beta=0.9, weight_decay=0):
+    Замечание. Аргумент beta сохранён для совместимости,
+    но в этой реализации не используется (momentum = 0).
+    """
+
+    def __init__(
+        self,
+        params,
+        lr: float = 1e-3,
+        beta: float = 0.0,           # not used, но оставлен для API‑совместимости
+        weight_decay: float = 0.0,
+        maximize: bool = False,
+    ):
         if lr <= 0.0:
             raise ValueError(f"Invalid learning rate: {lr}")
-        defaults = dict(lr=lr, beta=beta, weight_decay=weight_decay)
-        super(EG, self).__init__(params, defaults)
+        defaults = dict(
+            lr=lr,
+            beta=beta,
+            weight_decay=weight_decay,
+            maximize=maximize,
+        )
+        super().__init__(params, defaults)
 
+        # Буфер предсказательного шага для каждого тензора
         for group in self.param_groups:
-            for p in group['params']:
-                self.state[p]['lookahead'] = torch.zeros_like(p.data)
+            for p in group["params"]:
+                self.state[p]["lookahead"] = torch.zeros_like(p.data)
 
-    def zero_grad(self):
-        """Обнуляет градиенты оптимизированных параметров"""
+    # ------------------------------------------------------------------ #
+    # Стандартные методы Optimizer
+    # ------------------------------------------------------------------ #
+    def zero_grad(self, set_to_none: bool = False):
+         """Обнуляет градиенты оптимизированных параметров"""
         for group in self.param_groups:
-            for p in group['params']:
+            for p in group["params"]:
                 if p.grad is not None:
-                    p.grad.detach_()
-                    p.grad.zero_()
+                    if set_to_none:
+                        p.grad = None
+                    else:
+                        p.grad.detach_()
+                        p.grad.zero_()
 
     def step(self, closure=None):
-        loss = None
-        if closure is not None:
-            loss = closure()
+        """
+        Одна итерация Extra‑Gradient: (1) look‑ahead, (2) пересчёт &nabla;,
+        (3) финальный апдейт. closure обязан выполнять:
+            optimizer.zero_grad(); loss.backward(); return loss
+        """
+        if closure is None:
+            raise RuntimeError("EG requires a closure that reevaluates the model")
 
-        # Compute (x_{k+1/2}, y_{k+1/2})
-        with torch.no_grad():
-            for group in self.param_groups:
-                lr = group['lr']
-                weight_decay = group['weight_decay']
-
-                for i, p in enumerate(group['params']):
-                    if p.grad is None:
-                        continue
-
-                    state = self.state[p]
-
-                    if weight_decay != 0:
-                        p.grad.add_(p.data, alpha=weight_decay)
-
-                    state['previous_param'] = p.data.clone()
-
-                    # x_{k+1/2} = x_k - η∇f(x_k)
-                    # y_{k+1/2} = y_k + η∇f(y_k)
-                    sign = -1 if i % 2 == 0 else 1
-                    state['lookahead'].copy_(p.data)
-                    state['lookahead'].add_(p.grad, alpha=sign*lr)
-
-        # Second pass: compute gradients at extrapolated point
+        # --- Pass 0: градиент в x_k уже посчитан к моменту вызова step() ---
         with torch.enable_grad():
-            # Temporarily swap parameters with lookahead values
-            original_params = []
-            for group in self.param_groups:
-                for p in group['params']:
-                    if p.grad is None:
-                        continue
-                    state = self.state[p]
-                    original_params.append((p, p.data.clone()))
-                    p.data.copy_(state['lookahead'])
+            loss = closure()  # (backward‑1)
 
-            # Recompute loss and gradients at (x_{k+1/2}, y_{k+1/2})
-            if closure is not None:
-                loss = closure()
-
-            # Restore original parameters but keep new gradients
-            for p, original_data in original_params:
-                p.data.copy_(original_data)
-
-        # Final update using gradients at extrapolated point
+        # ------------------------------------------------------------------ #
+        # Pass 1: строим look‑ahead z = x_k &plusmn; lr∙&nabla;f(x_k)
+        # ------------------------------------------------------------------ #
         with torch.no_grad():
             for group in self.param_groups:
-                lr = group['lr']
-                weight_decay = group['weight_decay']
+                lr, wd, maximize = group["lr"], group["weight_decay"], group["maximize"]
+                sign = 1.0 if maximize else -1.0
 
-                for i, p in enumerate(group['params']):
+                for p in group["params"]:
                     if p.grad is None:
                         continue
-
+                    if wd != 0:
+                        p.grad.add_(p.data, alpha=wd)
                     state = self.state[p]
+                    state["previous_param"] = p.data.clone()         # x_k
+                    state["lookahead"].copy_(p.data)
+                    state["lookahead"].add_(p.grad, alpha=sign * lr)  # z
 
-                    if weight_decay != 0:
-                        p.grad.add_(p.data, alpha=weight_decay)
+        # ------------------------------------------------------------------ #
+        # Pass 2: градиент в точке z = x_{k+½}
+        # ------------------------------------------------------------------ #
+        # Временно подменяем веса look‑ahead‑значениями
+        orig_data = []
+        for group in self.param_groups:
+            for p in group["params"]:
+                if p.grad is None:
+                    continue
+                orig_data.append((p, p.data.clone()))
+                p.data.copy_(self.state[p]["lookahead"])
 
-                    # x_{k+1} = x_k - η∇f(x_{k+1/2})
-                    # y_{k+1} = y_k + η∇f(y_{k+1/2})
-                    sign = -1 if i % 2 == 0 else 1
-                    p.data.copy_(state['previous_param'])
-                    p.data.add_(p.grad, alpha=sign*lr)
+        with torch.enable_grad():
+            loss = closure()  # backward‑2
+
+        # Возвращаем x_k, но оставляем p.grad = &nabla;f(z) ---------------------- #
+        for p, old in orig_data:
+            p.data.copy_(old)
+
+        # ------------------------------------------------------------------ #
+        # Pass 3: финальное обновление x_{k+1} = x_k &plusmn; lr∙&nabla;f(z)
+        # ------------------------------------------------------------------ #
+        with torch.no_grad():
+            for group in self.param_groups:
+                lr, wd, maximize = group["lr"], group["weight_decay"], group["maximize"]
+                sign = 1.0 if maximize else -1.0
+
+                for p in group["params"]:
+                    if p.grad is None:
+                        continue
+                    if wd != 0:
+                        p.grad.add_(p.data, alpha=wd)
+
+                    p.data.copy_(self.state[p]["previous_param"])  # &larr; x_k
+                    p.data.add_(p.grad, alpha=sign * lr)           # &larr; x_{k+1}
 
         return loss
