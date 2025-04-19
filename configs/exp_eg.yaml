@@ -1,0 +1,15 @@
+optimizer:
+  # "Adam", "EG", "OAdam" ...
+  name: "EG"
+  lr_g: 2e-4
+  lr_d: 1e-5
+  weight_decay: 0
+  grad_clip: None   #без клиппинга
+trainer:
+  batch_size: 8
+  lambda_cycle: 10.0
+  epochs: 100
+  save_every: 10
+dataset:
+  he_dir: "data/dataset_HE/tiles"
+  ki_dir: "data/dataset_Ki67/tiles"
