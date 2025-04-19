@@ -15,7 +15,6 @@ class StainDataset(Dataset):
     Класс, возвращающий пары изображений: (HE_img, Ki67_img).
     1) Фильтрует "слишком белые" изображения (mean >= white_threshold).
     2) Сохраняет отфильтрованные оригиналы в отдельные папки.
-    3) Баланс белого (GrayWorld) для части изображений делает "на лету" при __getitem__.
     """
     def __init__(self,
                  he_dir: str,
@@ -28,7 +27,6 @@ class StainDataset(Dataset):
         """
         :param white_threshold: если средняя яркость (0..255) выше этого порога —
                                 картинка считается белой и исключается.
-        :param prob_correction: вероятность применения баланса белого при обучении.
         """
         super().__init__()
 
@@ -41,8 +39,6 @@ class StainDataset(Dataset):
 
         self.white_threshold = white_threshold
         self.save_filtered = save_filtered
-        self.train = train
-        self.prob_correction = prob_correction
 
         if transform is None:
             self.transform = transforms.Compose([
