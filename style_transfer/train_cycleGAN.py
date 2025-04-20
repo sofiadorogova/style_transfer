@@ -71,7 +71,7 @@ class CycleGANTrainer:
         self.opt_dy = torch.optim.Adam(self.D_Y.parameters(), lr=lr_d, betas=(0.5, 0.999))
 
         # Лосс: CycleGANLoss (из cycle_loss.py)
-        self.cycle_loss_fn = CycleGANLoss(lambda_cycle=lambda_cycle)
+        self.cycle_loss_fn = CycleGANLoss(lambda_cycle=lambda_cycle, lambda_id=lambda_id)
         # L1 для IdentityLoss
         self.l1 = nn.L1_loss()
 
@@ -126,6 +126,9 @@ class CycleGANTrainer:
             fake_x = self.F_YtoX(real_y)
             rec_y  = self.G_XtoY(fake_x)
 
+            same_x = self.F_YtoX(real_x)
+            same_y = self.G_XtoY(real_y)
+
             # 2) Обновляем D_x
 
             # Генерация фейка
@@ -166,21 +169,15 @@ class CycleGANTrainer:
             d_y_fake_for_g = self.D_Y(fake_y)
             d_x_fake_for_f = self.D_X(fake_x)
 
+            # Вычисление IdentityLoss (только в train)
             g_loss = self.cycle_loss_fn(
                 real_x, real_y,
                 fake_y, fake_x,
                 rec_x, rec_y,
-                d_y_fake_for_g, d_x_fake_for_f
+                same_x, same_y,
+                d_y_fake_for_g, d_x_fake_for_f,
+                True
             )
-
-            # Вычисление IdentityLoss (только в train)
-            same_y = self.G_XtoY(real_y)
-            loss_identity_y = self.l1(same_y, real_y)
-            same_x = self.F_YtoX(real_x)
-            loss_identity_x = self.l1(same_x, real_x)
-            identity_loss = self.lambda_id * (loss_identity_x + loss_identity_y)
-
-            g_loss += identity_loss
 
             g_loss.backward()
 
@@ -221,6 +218,9 @@ class CycleGANTrainer:
                 rec_x  = self.F_YtoX(fake_y)
                 fake_x = self.F_YtoX(real_y)
                 rec_y  = self.G_XtoY(fake_x)
+                same_x = self.F_YtoX(real_x)
+                same_y = self.G_XtoY(real_y)
+
                 
                 # Подсчёт лоссов D_x
                 dx_real = self.D_X(real_x)
@@ -243,7 +243,9 @@ class CycleGANTrainer:
                     real_x, real_y,
                     fake_y, fake_x,
                     rec_x, rec_y,
-                    d_y_fake_for_g, d_x_fake_for_f
+                    same_x, same_y,
+                    d_y_fake_for_g, d_x_fake_for_f,
+                    False
                 )
 
                 val_g_loss  += g_loss.item()

@@ -10,13 +10,14 @@ class CycleGANLoss(nn.Module):
       - Cycle-consistency loss: x->G->F->x, y->F->G->y
       - Identity Loss
     """
-    def __init__(self, lambda_cycle: float = 10.0):
+    def __init__(self, lambda_cycle: float = 10.0, lambda_id: float = 0.5):
         """
         :param lambda_cycle: вес cycle-consistency лосса (в статье берут 10.0)
         :param lambda_id: вес identity loss
         """
         super().__init__()
         self.lambda_cycle = lambda_cycle
+        self.lambda_id = lambda_id
         self.mse = nn.MSELoss()
         self.l1 = nn.L1Loss()
 
@@ -30,9 +31,14 @@ class CycleGANLoss(nn.Module):
                 # Реконструкции (F(G(X)), G(F(Y)))
                 rec_x: torch.Tensor, 
                 rec_y: torch.Tensor,
+                # Тождественность преобразования (F(X), G(Y))
+                same_x: torch.Tensor,
+                same_y: torch.Tensor,
                 # Выходы дискриминаторов на фейках
                 d_y_fake: torch.Tensor,  # = D_Y(fake_y)
-                d_x_fake: torch.Tensor   # = D_X(fake_x)
+                d_x_fake: torch.Tensor,   # = D_X(fake_x)
+                # identity loss только для train (optional arg)
+                is_train_part: torch.bool
                 ) -> torch.Tensor:
         """
         Возвращает суммарный лосс генераторов G и F.
@@ -57,5 +63,14 @@ class CycleGANLoss(nn.Module):
         cycle_y = self.l1(rec_y, real_y)  # G(F(y)) ~ y
         cycle_loss = cycle_x + cycle_y
 
-        loss_g = adv_g + adv_f + self.lambda_cycle * cycle_loss
+        if is_train_part:
+          # Identity Loss
+          loss_identity_x = self.l1(same_x, real_x)
+          loss_identity_y = self.l1(same_y, real_y)
+          identity_loss = loss_identity_x + loss_identity_y
+          loss_g = adv_g + adv_f + self.lambda_cycle * cycle_loss + self.lambda_id * identity_loss
+        
+        else:
+          loss_g = adv_g + adv_f + self.lambda_cycle * cycle_loss
+
         return loss_g
