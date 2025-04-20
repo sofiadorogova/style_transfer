@@ -253,15 +253,15 @@ class CycleGANTrainer:
         for epoch in range(1, self.epochs + 1):
             # ---------- train ------------------------------------------- #
             tr_g, tr_dx, tr_dy = self.train_epoch()
-            self.logger.add_scalar("loss/train_g",  tr_g,  epoch)
-            self.logger.add_scalar("loss/train_dx", tr_dx, epoch)
+            self.logger.add_scalar("Loss_train/train_g",  tr_g,  epoch)
+            self.logger.add_scalar("Loss_train/train_dx", tr_dx, epoch)
             self.logger.add_scalar("loss/train_dy", tr_dy, epoch)
 
             # ---------- val --------------------------------------------- #
             val_g, val_dx, val_dy = self.validate()
-            self.logger.add_scalar("loss/val_g",  val_g,  epoch)
-            self.logger.add_scalar("loss/val_dx", val_dx, epoch)
-            self.logger.add_scalar("loss/val_dy", val_dy, epoch)
+            self.logger.add_scalar("Loss_val/val_g",  val_g,  epoch)
+            self.logger.add_scalar("Loss_val/val_dx", val_dx, epoch)
+            self.logger.add_scalar("Loss_val/val_dy", val_dy, epoch)
 
             print(
                 f"[{epoch:03d}/{self.epochs}] "
