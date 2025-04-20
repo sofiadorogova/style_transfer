@@ -81,8 +81,8 @@ def load_images_from_folder(folder_name):
             print(f"Не удалось загрузить изображение: {img_path}")
     return images
 
-real_images = "/Users/anastasiia/6семестр/m1p/images" #папка с реальными изображениями
-generated_images = "/Users/anastasiia/6семестр/m1p/images" #папка с полученными изображениями из сетки
+real_images = "your path" #папка с реальными изображениями
+generated_images = "your path" #папка с полученными изображениями из сетки
     
 real_images = load_images_from_folder(real_images)
 generated_images = load_images_from_folder(generated_images)
