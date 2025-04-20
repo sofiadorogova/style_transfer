@@ -317,3 +317,4 @@ if __name__ == "__main__":
     torch.save(trainer.F_YtoX.state_dict(), "models/run_3/F_YtoX_final.pt")
     torch.save(trainer.D_X.state_dict(),    "models/run_3/D_X_final.pt")
     torch.save(trainer.D_Y.state_dict(),    "models/run_3/D_Y_final.pt")
+    
