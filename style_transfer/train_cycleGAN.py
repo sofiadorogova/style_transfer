@@ -6,6 +6,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 from optim.optimistic import OGDA, OptimisticAdam
+from optim.extragradient import ExtraSGD
 import json
 
 import torch.nn.utils as utils
@@ -26,8 +27,9 @@ class CycleGANTrainer:
                  epochs=50,
                  save_every=10,
                  grad_clip_value=1.0,
-                 optim_g="optimistic_adam",  # "optimistic_adam" или "ogda"
-                 optim_d="ogda"):            # "optimistic_adam" или "ogda"
+                 optim_g="optimistic_adam",  # "optimistic_adam" или "ogda"; "extraSGD"
+                 optim_d="ogda",  # "optimistic_adam" или "ogda"; "extraSGD"
+                 ):            
 
         self.device = torch.device('cuda:1' if torch.cuda.is_available() else "cpu")
         self.epochs = epochs
@@ -89,6 +91,11 @@ class CycleGANTrainer:
                 list(self.G_XtoY.parameters()) + list (self.F_YtoX.parameters()),
                 lr = lr_g
             )
+        elif optim_g == "extraSGD":
+            self.opt_g = ExtraSGD(
+                list(self.G_XtoY.parameters()) + list (self.F_YtoX.parameters()),
+                lr = lr_g, momentum=0.9,
+            )
         else:
             raise ValueError("optim_g must be 'optimistic_adam' or 'ogda'")
         
@@ -99,10 +106,13 @@ class CycleGANTrainer:
         elif optim_d == "ogda":
             self.opt_dx = OGDA(self.D_X.parameters(), lr=lr_d)
             self.opt_dy = OGDA(self.D_Y.parameters(), lr=lr_d)
+        elif optim_g == "extraSGD":
+            self.opt_dx = ExtraSGD(self.D_X.parameters(), lr=lr_d, momentum=0.9)
+            self.opt_dy = ExtraSGD(self.D_Y.parameters(), lr=lr_d, momentum=0.9)
         else:
             raise ValueError("optim_d must be 'optimistic_adam' or 'ogda'")
     
-    def train_epoch(self):
+    def train_epoch(self, is_extraSGD=False):
         """Одна эпоха обучения"""
         self.G_XtoY.train()
         self.F_YtoX.train()
@@ -140,6 +150,9 @@ class CycleGANTrainer:
 
             dx_loss = 0.5 * (dx_loss_real + dx_loss_fake)
             dx_loss.backward()
+            
+            if is_extraSGD:
+                self.opt_dx.extrapolation()                  
 
             # --- клиппим градиенты ---
             utils.clip_grad_norm_(self.D_X.parameters(), max_norm=self.grad_clip_value)
@@ -156,6 +169,9 @@ class CycleGANTrainer:
 
             dy_loss = 0.5 * (dy_loss_real + dy_loss_fake)
             dy_loss.backward()
+            
+            if is_extraSGD:
+                self.opt_dy.extrapolation()                  
 
             # --- клиппим градиенты ---
             utils.clip_grad_norm_(self.D_Y.parameters(), max_norm=self.grad_clip_value)
@@ -180,6 +196,9 @@ class CycleGANTrainer:
             )
 
             g_loss.backward()
+
+            if is_extraSGD:
+                self.opt_g.extrapolation()
 
             # --- клиппим градиенты ---
             utils.clip_grad_norm_(
