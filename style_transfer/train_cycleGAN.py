@@ -314,10 +314,10 @@ class CycleGANTrainer:
         print(f"Loaded checkpoint {checkpoint_path}, starting at epoch {start_epoch}")
         return start_epoch
 
-    def run(self):
+    def run(self, is_extraSGD=False):
         for epoch in range(1, self.epochs+1):
             #train
-            train_g, train_dx, train_dy = self.train_epoch()
+            train_g, train_dx, train_dy = self.train_epoch(is_extraSGD)
             self.logger.add_scalar("Loss_train/train_g", train_g, epoch)
             self.logger.add_scalar("Loss_train/train_dx", train_dx, epoch)
             self.logger.add_scalar("Loss_train/train_dy", train_dy, epoch)
@@ -374,7 +374,8 @@ if __name__ == "__main__":
     # Пример (если хотим дообучать с чекпоинта):
     # start_epoch = trainer.load_checkpoint("checkpoint_epoch_50.pt")
 
-    trainer.run()
+    is_extraSGD = False
+    trainer.run(is_extraSGD)
 
     torch.save(trainer.G_XtoY.state_dict(), "models/run_3/G_XtoY_final.pt")
     torch.save(trainer.F_YtoX.state_dict(), "models/run_3/F_YtoX_final.pt")
