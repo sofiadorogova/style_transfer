@@ -63,3 +63,4 @@ class OptimisticAdam(torch.optim.Optimizer):
 
                 # Сохраняем текущий градиент
                 state['prev_grad'] = grad.clone()
+                
